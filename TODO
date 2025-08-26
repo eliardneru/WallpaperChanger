@@ -1,0 +1,5 @@
+- add icons
+- add shuffling every X changes
+- add quantum shuffling
+- fix the default folder (it mixes foward and backward slashes)
+- add warnings (like if the current folder is empty)
