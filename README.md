@@ -14,13 +14,17 @@ just unzip the file and run the .exe, if you want it to run at the windows start
 - exit to tray
 - a cool timer that shows when the next wallpaper is changing
 
+# Building and compiling
+good luck, you are on your own
+jk, but i use QT Creator to compile it, i'm not sure how you would do it without it
+
 # FAQ
 ## why you made this and didn't just use other software such as John's Background Switcher?
 too much bloat and didn't have the features i actually wanted, such as shuffling
 ## why can't i change wallpapers more than every 99 hours and 66 minutes?
 this is due to QTimer's limit, but also because i cannot see a good reason to why one would want to go over that, like what is wrong with you
 ## will this waste my ram?
-it uses 4mb of ram last time i checked, i did have some troubles with memory leak's in other wallpaper switchers
+it uses 4mb of ram last time i checked, i did have some troubles with memory leak's in other wallpaper switchers such as john's
 ## does this has bugs?
 definitly
 ## will you updade this?
