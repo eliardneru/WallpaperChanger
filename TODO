@@ -4,3 +4,4 @@
 - fix the default folder (it mixes foward and backward slashes)
 - add warnings (like if the current folder is empty)
 - change wallpaper on program/windows startup
+- show how many loaded wallpapers there are (for both debugging reasons and cuz its school)
