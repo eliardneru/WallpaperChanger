@@ -1,0 +1,13 @@
+#### 2025/08/31 12:48 AM
+added a check to see if the program is already running
+i lost track of the things i added, got lost in the sauce
+
+#### 2025/08/31 12:13 AM
+fixed bugs related to loaded count
+added change on opening and save
+
+#### 2025/08/30 10:44 PM
+added wallpapers loaded count
+
+#### 2025/08/30 9:25 PM
+fixed problem related to reverse slashes
