@@ -13,6 +13,8 @@ just unzip the file and run the .exe, if you want it to run at the windows start
 - change wallpaper every period of time
 - exit to tray
 - a cool timer that shows when the next wallpaper is changing
+- counter of how many wallpapers are loaded
+- toggle to change wallpaper on program startup
 
 # Building and compiling
 good luck, you are on your own
