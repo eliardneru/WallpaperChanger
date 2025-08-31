@@ -8,6 +8,8 @@
 #include <QSystemTrayIcon>
 #include <QCloseEvent>
 
+
+
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class WallpaperChanger;
@@ -26,13 +28,13 @@ public:
     void createConfig();
     void changeWallpaper(); //changes the wallpaper
     bool checkWallpaper(const std::filesystem::path& p);
-    void getWallpapers();
+    void getWallpapers(bool shouldChange);
+    void updateWallCount();
     void shuffleWallpapersNormal();
     void startCountdown(QTimer *timer);
     void updateTimeLeft();
 
 private slots:
-
 
     void on_saveBtn_clicked();
 

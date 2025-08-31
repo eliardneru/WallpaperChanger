@@ -14,6 +14,7 @@
 #include <fstream>
 #include <algorithm>
 #include <random>
+
 //qt includes
 #include <QMessageBox>
 #include <QFileDialog>
@@ -23,9 +24,16 @@
 #include <QMenu>
 #include <QAction>
 #include <QIcon>
+#include "QtConcurrent/QtConcurrent" // wtf
 
 using njson = nlohmann::json;
-njson config; //OH, NOO, A GLOBAL, WHAT SHALL WE DO?????????????????????????????
+struct programState //OH, NOO, A GLOBAL, WHAT SHALL WE DO?????????????????????????????
+{
+    njson config;
+    int wallCount = 0;
+    int sinceChanged = 0;
+};
+programState state;
 
 
 
@@ -38,9 +46,8 @@ WallpaperChanger::WallpaperChanger(QWidget *parent)
     this->setFixedSize(this->size());
     this->setWindowFlags(windowFlags() & ~Qt::WindowMaximizeButtonHint);
 
-
     checkConfig();
-    getWallpapers();
+    getWallpapers(state.config["changeOnOpen"]);
     wallCountdown = new QTimer(this);
     connect(wallCountdown, &QTimer::timeout,this,&WallpaperChanger::changeWallpaper); //when to change wallpaper
     uiPoller = new QTimer(this);
@@ -61,13 +68,13 @@ void WallpaperChanger::setupTray()
     trayIcon = new QSystemTrayIcon(this);
 
     trayIcon->setIcon(QIcon(":assets/graphicdesignismypassion.png"));
-    trayIcon->setToolTip("Wallpaper changer :)");
+    trayIcon->setToolTip("Wallpaper changer ");
 
     QMenu* trayMenu = new QMenu(this);
 
     QAction* showAction = trayMenu->addAction("Show");
-    QAction* changeAction = trayMenu->addAction("ChangeWallpaper");
-    QAction* quitAction = trayMenu->addAction("quit");
+    QAction* changeAction = trayMenu->addAction("Change wallpaper");
+    QAction* quitAction = trayMenu->addAction("Quit");
 
     connect(showAction, &QAction::triggered, this, &QMainWindow::show);
     connect(changeAction, &QAction::triggered, this, &WallpaperChanger::changeWallpaper);
@@ -85,7 +92,7 @@ void WallpaperChanger::setupTray()
 
 void WallpaperChanger::closeEvent(QCloseEvent *event)
 {
-    if(config["closeToTray"] == true && trayIcon->isVisible())
+    if(state.config["closeToTray"] == true && trayIcon->isVisible())
     {
         hide();
         event->ignore();
@@ -104,35 +111,41 @@ void WallpaperChanger::checkConfig() //checks current info in config.json
     qDebug() << "current path: " << path.string();
     QString test2 = QString::fromStdString(path.string());
     qDebug() << test2;
-    if(!std::filesystem::exists(path)) //if config does not exist, create one
+    if(!std::filesystem::exists(path)) //if state.config does not exist, create one
     {
         createConfig();
         return;
     }
 
     std::ifstream file(path);
-    file >> config;
+    file >> state.config;
     file.close();
 
 
-    ui->adressLned->setText(QString::fromUtf8((config["location"].get<std::string>().c_str()))); //just fucking kill me now
-    ui->hourSpn->setValue(config["hours"]);
-    ui->minSpn->setValue(config["minutes"]);
-    if(config["shuffle"] == true) {ui->shuffleChk->setCheckState(Qt::Checked);}
+    ui->adressLned->setText(QString::fromUtf8((state.config["location"].get<std::string>().c_str()))); //just fucking kill me now
+    ui->hourSpn->setValue(state.config["hours"]);
+    ui->minSpn->setValue(state.config["minutes"]);
+    if(state.config["shuffle"] == true) {ui->shuffleChk->setCheckState(Qt::Checked);}
     else {ui->shuffleChk->setCheckState(Qt::Unchecked);}
-    if(config["closeToTray"] == true) {ui->actionExit_to_tray->setChecked(true);}
+    if(state.config["closeToTray"] == true) {ui->actionExit_to_tray->setChecked(true);}
     else { ui->actionExit_to_tray->setChecked(false); }
-
+    if(state.config["changeOnOpen"] == true){ ui->acionChange_on_open->setChecked(true); }
+    else { ui->acionChange_on_open->setChecked(false); }
+    if(state.config["changeOnSave"] == true){ ui->actionChange_on_save->setChecked(true); }
+    else { ui->actionChange_on_save->setChecked(false); }
+    //TODO: i could add a thing that just does this as a function, but idk if that would be very worthwhile for such a small program
 }
 
 void WallpaperChanger::createConfig() //creates the default config
 {
-    qDebug() << "creating config!";
+    qDebug() << "creating state.config!";
 
-    config["hours"] = 4;
-    config["minutes"] = 0;
-    config["shuffle"] = true;
-    config["closeToTray"] = true;
+    state.config["hours"] = 4;
+    state.config["minutes"] = 0;
+    state.config["shuffle"] = true;
+    state.config["closeToTray"] = true;
+    state.config["changeOnOpen"] = true;
+    state.config["changeOnSave"] = false;
     char username[UNLEN + 1];
     DWORD size = UNLEN + 1;
 
@@ -147,24 +160,24 @@ void WallpaperChanger::createConfig() //creates the default config
 
     std::string user(username);
 
-    std::filesystem::path picturesPath = std::filesystem::path("C:/Users") / user / "Pictures";
+    std::filesystem::path picturesPath = std::filesystem::path("C:\\Users") / user / "Pictures";
 
 
 
     qDebug() << "pictures path" << picturesPath.string();
     if (std::filesystem::exists(picturesPath))
     {
-        config["location"] = picturesPath.string();
+        state.config["location"] = picturesPath.string();
     }
     else
     {
         qDebug() << "Failed to get username, why????????";
     }
 
-    config["lastLocation"] = config["location"];
+    state.config["lastLocation"] = state.config["location"];
 
     std::ofstream file("config.json");
-    file << config.dump(4);
+    file << state.config.dump(4);
     file.close();
     checkConfig();
 }
@@ -207,6 +220,12 @@ void WallpaperChanger::changeWallpaper()
 
     if (!changed) { qDebug() << "did not change wallpaper :("; }
     else {qDebug() << "changed wallpaper :)"; }
+    ++state.sinceChanged;
+    if(state.sinceChanged>=5)
+    {
+        shuffleWallpapersNormal();
+        state.sinceChanged = 0;
+    }
 }
 
 bool WallpaperChanger::checkWallpaper(const std::filesystem::path &p) //checks if the wallpaper is actually an wallpaper, this may need a better name
@@ -218,36 +237,54 @@ bool WallpaperChanger::checkWallpaper(const std::filesystem::path &p) //checks i
     return std::find(ends.begin(), ends.end(), end) != ends.end();
 }
 
-void WallpaperChanger::getWallpapers() //gets the wallpapers
+void WallpaperChanger::getWallpapers(bool shouldChange)
 {
-    try
-    {
-        for(const auto& entry : std::filesystem::directory_iterator(config["location"]))
-        {
-            if(std::filesystem::is_regular_file(entry.status()) && checkWallpaper(entry.path()))
-            {
-                wallpapers.push_back(entry.path().string());
-                qDebug() << "added" << QString::fromStdString(entry.path().string()) << "to wallpaper list";
-            }
-        }
-    }
-    catch (const std::filesystem::filesystem_error& e)
-    {
-        std::cerr << "error doing stuff: " << e.what() << std::endl;
-    }
+    QtConcurrent::run([=]() {
+        state.wallCount = 0;
+        wallpapers.clear();
+        try {
+            ui->saveBtn->setEnabled(false);
+            ui->changeBtn->setEnabled(false);
+            for (const auto& entry : std::filesystem::directory_iterator(state.config["location"])) {
+                if (std::filesystem::is_regular_file(entry.status()) && checkWallpaper(entry.path())) {
+                    wallpapers.push_back(entry.path().string());
 
-    if (config["shuffle"] == true)
-    {
-        shuffleWallpapersNormal();
-    }
+                    // update wallpaper count safely on main thread
+                    QMetaObject::invokeMethod(this, [=]() {
+                        state.wallCount++;
+                        updateWallCount();
+                    }, Qt::QueuedConnection);
+                }
+            }
+            ui->saveBtn->setEnabled(true);
+            ui->changeBtn->setEnabled(true);
+        } catch (const std::filesystem::filesystem_error& e) {
+            qDebug() << "Error: " << e.what();
+        }
+
+        if (state.config["shuffle"] == true) {
+            shuffleWallpapersNormal();
+        }
+
+        // final UI updates and wallpaper change
+        QMetaObject::invokeMethod(this, [=]() {
+            updateWallCount();
+            ui->saveBtn->setEnabled(true);
+            if (shouldChange) changeWallpaper();
+        }, Qt::QueuedConnection);
+    });
+
 }
+
+
+
 
 void WallpaperChanger::shuffleWallpapersNormal()
 {
     auto now = std::chrono::high_resolution_clock::now();
     unsigned seed = now.time_since_epoch().count();
     std::mt19937 g(seed); //this is some egyptian alien type shit
-
+    qDebug() << "shuffled wallpapers!";
     std::shuffle(wallpapers.begin(), wallpapers.end(), g);
 }
 
@@ -260,8 +297,8 @@ void WallpaperChanger::startCountdown(QTimer *timer)
         timer->stop();
     }
     int time = 0;
-    int timeMins = config["minutes"];
-    int timeHrs = config["hours"];
+    int timeMins = state.config["minutes"];
+    int timeHrs = state.config["hours"];
 
     time += timeMins * 60;
     time += timeHrs * 60 * 60;
@@ -269,6 +306,14 @@ void WallpaperChanger::startCountdown(QTimer *timer)
     qDebug() << "started countdown of " << timeHrs << " hours and " << timeMins << " minutes";
     timer->start(time);
 }
+
+void WallpaperChanger::updateWallCount()
+{
+    //qDebug() << "updating wallpaper count";
+    QString count = QString("Wallpapers loaded: %1").arg(state.wallCount);
+    ui->wallCountLbl->setText(count);
+}
+
 
 void WallpaperChanger::updateTimeLeft()
 {
@@ -287,7 +332,7 @@ void WallpaperChanger::updateTimeLeft()
 
 
 ///what happens if buttons get clicked
-void WallpaperChanger::on_saveBtn_clicked() //dumps all ui stuff into the json config file thingy funny
+void WallpaperChanger::on_saveBtn_clicked() //dumps all ui stuff into the json state.config file thingy funny
 {
     bool shouldError = false;
 
@@ -319,21 +364,26 @@ void WallpaperChanger::on_saveBtn_clicked() //dumps all ui stuff into the json c
     {
         QMessageBox::critical(this, "Error", "The folder has no wallpapers on it, so no wallpaper changes will happen");
     }
-    config["hours"] = ui->hourSpn->text().toInt();
-    config["minutes"] = ui->minSpn->text().toInt();
-    if (ui->shuffleChk->isChecked()) { config["shuffle"] = true; }
-    else { config["shuffle"] = false; }
+    state.config["hours"] = ui->hourSpn->text().toInt();
+    state.config["minutes"] = ui->minSpn->text().toInt();
+    if (ui->shuffleChk->isChecked()) { state.config["shuffle"] = true; }
+    else { state.config["shuffle"] = false; }
 
-    if(ui->actionExit_to_tray->isChecked()) {config["closeToTray"] = true; }
-    else { config["closeToTray"] = false; }
+    if(ui->actionExit_to_tray->isChecked()) {state.config["closeToTray"] = true; }
+    else { state.config["closeToTray"] = false; }
 
-    config["location"] = ui->adressLned->text().toStdString();
+    if(ui->actionChange_on_save->isChecked()){state.config["changeOnSave"] = true;}
+    else {state.config["changeOnSave"] = false;}
+    if(ui->acionChange_on_open->isChecked()){state.config["changeOnOpen"] = true;}
+    else{state.config["changeOnOpen"] = false;}
+
+    state.config["location"] = ui->adressLned->text().toStdString();
     std::ofstream file("config.json");
-    file << config.dump(4);
+    file << state.config.dump(4);
     file.close();
     startCountdown(wallCountdown);
-    getWallpapers();
 
+    getWallpapers(state.config["changeOnSave"]);
 }
 
 
@@ -346,8 +396,6 @@ void WallpaperChanger::on_changeBtn_clicked()
 void WallpaperChanger::on_browseBtn_clicked()
 {
     ui->adressLned->setText((QFileDialog::getExistingDirectory(this, "Select folder", "C:/Users", QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks)));
-    config["lastLocation"] = ui->adressLned->text().toStdString();
+    state.config["lastLocation"] = ui->adressLned->text().toStdString();
 }
-
-
 
