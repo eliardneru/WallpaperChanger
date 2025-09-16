@@ -28,8 +28,8 @@ this is due to QTimer's limit, but also because i cannot see a good reason to wh
 ## will this waste my ram?
 it uses 4mb of ram last time i checked, i did have some troubles with memory leak's in other wallpaper switchers such as john's
 ## does this has bugs?
-definitly
-## will you updade this?
+definitely
+## will you update this?
 not sure, it has enough features for my personal usage
 ## why is everything in main?
 i don't like headers
